@@ -1,0 +1,4 @@
+{"level":"info","msg":"logged in Succesfully","time":"2019-11-05T13:01:59+05:30","user":"sun"}
+{"amount":"3000","level":"info","msg":"amount deposited","time":"2019-11-05T13:02:06+05:30"}
+{"amount":3000,"level":"info","msg":"Balance check","time":"2019-11-05T13:02:07+05:30"}
+{"level":"info","msg":"logged out Succesfully","time":"2019-11-05T13:02:09+05:30","user":"user"}
