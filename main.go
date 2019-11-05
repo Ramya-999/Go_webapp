@@ -69,7 +69,6 @@ func main() {
 
 	http.Redirect(w, r, "/", 302)
 	log.WithFields(log.Fields{
-		"user":"user",
 		}).Info( "logged out Succesfully")
     //templates.ExecuteTemplate(w, "home.html", nil)
  } 
