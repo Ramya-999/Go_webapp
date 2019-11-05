@@ -2,22 +2,49 @@ package main
 
 import (
     "database/sql"
-	"log"
+	//"log"
+	"os"
 	"fmt"
     "net/http"
     "html/template"
-    "strconv"
+	"strconv"
+	
 
     _ "github.com/go-sql-driver/mysql"
     "github.com/gorilla/mux"
-    "github.com/gorilla/sessions"
+	"github.com/gorilla/sessions"
+	"golang.org/x/crypto/bcrypt"
+	log "github.com/sirupsen/logrus"
 )
+
+func init() {
+	// Log as JSON instead of the default ASCII formatter.
+	log.SetFormatter(&log.JSONFormatter{})
+  
+	// Output to stdout instead of the default stderr
+	// Can be any io.Writer, see below for File example
+	//log.SetOutput(os.Stdout)
+
+	// You could set this to any `io.Writer` such as a file
+  file, err := os.OpenFile("logrus.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+   if err == nil {
+	log.SetOutput(file)
+  } else {
+    log.Info("Failed to log to file, using default stderr")
+   }
+
+
+  // log.SetOutput(file)
+  
+	// Only log the warning severity or above.
+//	log.SetLevel(log.WarnLevel)
+  }
 
 type customer struct {
     amount  int
-    name, pwd string 
+	name  string 
+	pwd []byte
 }
-
 
 
 var templates *template.Template
@@ -39,15 +66,21 @@ func main() {
 	  r.HandleFunc("/checkbalance", getcheckbalance).Methods("GET")
 	  r.HandleFunc("/signup", getregister).Methods("GET")
 	  r.HandleFunc("/signup", postregister).Methods("POST")
-	  r.HandleFunc("/", getlogout).Methods("GET")
+	  r.HandleFunc("/logout", getlogout).Methods("GET")
       
        r.HandleFunc("/index", getindex).Methods("GET")
        http.Handle("/", r)
       http.ListenAndServe(":8080", nil)
       
   }
+
   func getlogout(w http.ResponseWriter, r *http.Request){
-	http.Redirect(w, r, "/home", 302)
+	
+
+	http.Redirect(w, r, "/", 302)
+	log.WithFields(log.Fields{
+		"user":"user",
+		}).Info( "logged out Succesfully")
     //templates.ExecuteTemplate(w, "home.html", nil)
  } 
  
@@ -66,8 +99,9 @@ func main() {
 	Result, err := db.Query("SELECT * FROM customer WHERE name=?", name1)
     user := customer{}
 	for Result.Next() {
-		var name2, pwd2 string
+		var name2 string
 		var amount int
+		var pwd2 []byte
 		err = Result.Scan(&name2, &pwd2, &amount)
 		if err != nil {
 			panic(err.Error())
@@ -75,22 +109,26 @@ func main() {
 		user.pwd = pwd2
 	}
     
-    if err != nil {
-		panic(err.Error())
-	}
-	if user.pwd!= pwd1 {
+
+     hashFromDatabase := user.pwd
+	if err := bcrypt.CompareHashAndPassword(hashFromDatabase, []byte(pwd1)); err != nil {
+		// TODO: Properly handle error
 		templates.ExecuteTemplate(w, "login.html", "invalid login")
 		return
-	}
-
-	if user.pwd == pwd1 {
+     //   log.Fatal(err)
+    } else {
 		session, _ := store.Get(r, "session")
 		session.Values["name"] = name1
 		session.Save(r, w)
 		http.Redirect(w, r, "/index", 302)
 	}
 	templates.ExecuteTemplate(w, "login", nil)
-	defer db.Close()
+	
+	log.WithFields(log.Fields{
+		"user": name1,
+	  }).Info( "logged in Succesfully")
+	
+	  defer db.Close()
 }
 
 func getregister(w http.ResponseWriter, r *http.Request){
@@ -104,15 +142,22 @@ func postregister(w http.ResponseWriter, r *http.Request){
 	pwd := r.PostForm.Get("pwd")
 	amount := 0
 
-	_, err = db.Exec("INSERT INTO customer (name, pwd, amount) VALUES (?, ?, ?)", name, pwd, amount)
+	hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
+
+
+	_, err = db.Exec("INSERT INTO customer (name, pwd, amount) VALUES (?, ?, ?)", name, hash, amount)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	log.WithFields(log.Fields{
+		"user": name,
+	  }).Info( "Registered")
+
+
+
 	http.Redirect(w, r, "/login", 301)
 	templates.ExecuteTemplate(w, "register.html", nil)
-	
-	
 	defer db.Close()
 }
 
@@ -150,6 +195,11 @@ func postdeposit(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.WithFields(log.Fields{
+		"amount": amount,
+	  }).Info( "amount deposited")
+	
 	http.Redirect(w, r, "/index", 302)
 	defer db.Close()
 }
@@ -187,6 +237,11 @@ func postwithdraw(w http.ResponseWriter, r *http.Request){
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.WithFields(log.Fields{
+		"amount": amount,
+	  }).Info( "amount withdrawed")
+
 	http.Redirect(w, r, "/index", 302)
 	defer db.Close()
 }
@@ -212,6 +267,11 @@ func getcheckbalance(w http.ResponseWriter, r *http.Request) {
     }
     amount3 := user.amount
 	templates.ExecuteTemplate(w, "check.html", amount3)
+
+	log.WithFields(log.Fields{
+		"amount": amount3,
+	  }).Info( "Balance check")
+
 	defer db.Close()
 }
 
