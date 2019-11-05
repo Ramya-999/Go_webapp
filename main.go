@@ -20,10 +20,6 @@ import (
 func init() {
 	// Log as JSON instead of the default ASCII formatter.
 	log.SetFormatter(&log.JSONFormatter{})
-  
-	// Output to stdout instead of the default stderr
-	// Can be any io.Writer, see below for File example
-	//log.SetOutput(os.Stdout)
 
 	// You could set this to any `io.Writer` such as a file
   file, err := os.OpenFile("logrus.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -32,12 +28,6 @@ func init() {
   } else {
     log.Info("Failed to log to file, using default stderr")
    }
-
-
-  // log.SetOutput(file)
-  
-	// Only log the warning severity or above.
-//	log.SetLevel(log.WarnLevel)
   }
 
 type customer struct {
@@ -278,16 +268,3 @@ func getcheckbalance(w http.ResponseWriter, r *http.Request) {
 func getindex(w http.ResponseWriter, r *http.Request) {
     templates.ExecuteTemplate(w, "index.html", nil)
 }
-
-
-
-
-
-    
-
-
-
-
-
-
-
